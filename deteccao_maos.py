@@ -1,6 +1,6 @@
 import cv2
 import mediapipe as mp
-
+import os
 
 # instancia as variáveis do mediapipe
 mp_maos = mp.solutions.hands
@@ -17,6 +17,10 @@ resolucao_x = 1280
 resolucao_y = 720
 camera.set(cv2.CAP_PROP_FRAME_WIDTH, resolucao_x)
 camera.set(cv2.CAP_PROP_FRAME_HEIGHT, resolucao_y)
+
+
+# Aplicações abertas
+bloco_notas_aberto = False
 
 
 def encontra_coordenadas_maos(img, lado_invertido = False):
@@ -56,8 +60,6 @@ def encontra_coordenadas_maos(img, lado_invertido = False):
             else:
                 info_mao['lado'] = lado_mao.classification[0].label
 
-            print(info_mao['lado'])
-
 
 
             todas_maos.append(info_mao)
@@ -73,6 +75,43 @@ def encontra_coordenadas_maos(img, lado_invertido = False):
     return img, todas_maos
 
 
+# Confere se o polegar está levantado
+# def dedos_levantados(mao):
+#     dedos = []
+#     if mao['lado'] == 'Right': 
+#         if mao['coordenadas'][4][0] < mao['coordenadas'][3][0]:
+#             dedos.append(True)
+#         else:
+#             dedos.append(False)
+#     else:
+#         if mao['coordenadas'][4][0] > mao['coordenadas'][3][0]:
+#             dedos.append(True)
+#         else:
+#             dedos.append(False)
+#     for ponta_dedo in [8,12,16,20]:
+#         if mao['coordenadas'][ponta_dedo][1] < mao['coordenadas'][ponta_dedo-2][1]:
+#             dedos.append(True)
+#         else:
+#             dedos.append(False)
+#     return dedos
+
+
+
+
+def dedos_levantados(mao):
+    dedos = []
+    for ponta_dedo in [8, 12, 16, 20]:
+        # confere se o dedo está levantado
+        if mao['coordenadas'][ponta_dedo][1] < mao['coordenadas'][ponta_dedo - 2][1]:
+            dedos.append(True)
+        else:
+            dedos.append(False)
+
+    return dedos
+
+
+
+
 while True:
     try:
         sucesso, img = camera.read()
@@ -81,6 +120,29 @@ while True:
         img = cv2.flip(img, 1)
 
         img, todas_maos = encontra_coordenadas_maos(img)
+
+
+        if len(todas_maos) == 1:
+            info_dedos_mao1 = dedos_levantados(todas_maos[0])
+            print(info_dedos_mao1)
+
+            if todas_maos[0]['lado'] == 'Right':
+                # Abre o notepad
+                if info_dedos_mao1 == [True, False, False, False] and bloco_notas_aberto == False:
+                    os.startfile(r'C:\Windows\System32\notepad.exe')
+                    bloco_notas_aberto = True
+
+                # Fecha o notepad
+                if info_dedos_mao1 == [False, False, False, False] and bloco_notas_aberto == True:
+                    os.system('TASKKILL /IM notepad.exe')
+                    bloco_notas_aberto = False
+
+
+                # Encerra o programa
+                if info_dedos_mao1 == [True, False, False, True]:
+                    break
+
+
 
         cv2.imshow("Imagem", img)
         tecla = cv2.waitKey(1)
